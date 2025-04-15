@@ -70,34 +70,34 @@ def _ros2_cpp_exec(target, name, ros2_package_name, set_up_ament, idl_deps, **kw
     is_test = target == cc_test
     set_up_launcher = is_test or set_up_ament
     if set_up_launcher == False:
-        _ros2_cc_target(target, "cpp", name, ros2_package_name, **kwargs)
+        tags = kwargs.pop("tags", []) + ["ros2_node"]
+        _ros2_cc_target(target, "cpp", name, ros2_package_name, tags = tags, **kwargs)
         return
 
     launcher_target_kwargs, binary_kwargs = split_kwargs(**kwargs)
-    target_impl = name + "_impl"
-    cc_tags = launcher_target_kwargs.get("tags", []) + ["manual"]
-    _ros2_cc_target(cc_binary, "cpp", target_impl, ros2_package_name, tags = cc_tags, **binary_kwargs)
+    cc_tags = launcher_target_kwargs.pop("tags", []) + ["manual", "ros2_node"]
+    _ros2_cc_target(cc_binary, "cpp", name, ros2_package_name, tags = cc_tags, **binary_kwargs)
 
     launcher = "{}_launch".format(name)
-    ament_setup_deps = [target_impl] if set_up_ament else None
+    ament_setup_deps = [name] if set_up_ament else None
     sh_launcher(
         launcher,
         ament_setup_deps = ament_setup_deps,
         template = "@com_github_mvukov_rules_ros2//ros2:launch.sh.tpl",
         substitutions = {
-            "{entry_point}": "$(rootpath {})".format(target_impl),
+            "{entry_point}": "$(rootpath {})".format(name),
         },
         tags = ["manual"],
-        data = [target_impl],
+        data = [name],
         idl_deps = idl_deps,
         testonly = is_test,
     )
 
     sh_target = native.sh_test if is_test else native.sh_binary
     sh_target(
-        name = name,
+        name = name + "_run",
         srcs = [launcher],
-        data = [target_impl],
+        data = [name],
         **launcher_target_kwargs
     )
 

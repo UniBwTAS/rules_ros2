@@ -24,6 +24,16 @@ load(
     "expand_template_impl",
 )
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load(
+    "@com_github_mvukov_rules_ros2//ros2:node_aspects.bzl",
+    "Ros2NodeCollectorAspectInfo",
+    "ros2_node_collector_aspect",
+)
+load(
+    "@com_github_mvukov_rules_ros2//ros2:bin_aspects.bzl",
+    "Ros2BinCollectorAspectInfo",
+    "ros2_bin_collector_aspect",
+)
 
 _AMENT_SETUP_MODULE = "ament_setup"
 
@@ -39,16 +49,23 @@ _RESOURCE_INDEX_PATH = "share/ament_index/resource_index"
 _PACKAGES_PATH = paths.join(_RESOURCE_INDEX_PATH, "packages")
 _PACKAGE_XML = "package.xml"
 
+def _write_package_to_resource_index(ctx, prefix_path, package_name):
+    resource_index_package = ctx.actions.declare_file(
+        paths.join(prefix_path, _PACKAGES_PATH, package_name),
+    )
+    ctx.actions.write(resource_index_package, "")
+    return resource_index_package
+
 def _write_package_xml(ctx, prefix_path, package_name):
     package_xml = ctx.actions.declare_file(
-        paths.join(prefix_path, _PACKAGES_PATH, package_name, _PACKAGE_XML),
+        paths.join(prefix_path, "share", package_name, _PACKAGE_XML),
     )
     ctx.actions.write(package_xml, _PACKAGE_XML_TEMPLATE.format(package_name = package_name))
     return package_xml
 
 def get_plugins_xml_path(plugin_package, plugin_target_name):
     """Returns prefix-path relative plugins XML file."""
-    return paths.join(_PACKAGES_PATH, plugin_package, plugin_target_name + "_plugins.xml")
+    return paths.join("share", plugin_package, plugin_target_name + "_plugins.xml")
 
 def _write_plugin_manifest(ctx, prefix_path, base_package, plugin_package, plugin_target_name):
     manifest = ctx.actions.declare_file(
@@ -56,7 +73,7 @@ def _write_plugin_manifest(ctx, prefix_path, base_package, plugin_package, plugi
             prefix_path,
             _RESOURCE_INDEX_PATH,
             base_package + "__pluginlib__plugin",
-            plugin_target_name + "_manifest",
+            plugin_target_name,
         ),
     )
     ctx.actions.write(manifest, get_plugins_xml_path(plugin_package, plugin_target_name))
@@ -108,6 +125,67 @@ Ros2AmentSetupInfo = provider(
     ],
 )
 
+# New provider for Ros2ResourceInfo to track installed resources
+Ros2ResourceInfo = provider(
+    "Information about ROS2 resources that should be installed",
+    fields = [
+        "resources",  # Dictionary mapping from source files to destination paths
+        "package_name",  # The ROS2 package name
+    ],
+)
+
+def _ros2_resource_rule_impl(ctx):
+    package_name = ctx.attr.package_name
+    
+    # Map resources to their install paths
+    resources = {}
+    for src in ctx.files.srcs:
+        # If a strip_prefix is provided, remove it from the path
+        path_in_package = src.short_path
+        
+        # Combine with destination directory if provided
+        if ctx.attr.destination:
+            path_in_package = paths.join(ctx.attr.destination, paths.basename(path_in_package))
+            
+        resources[src] = path_in_package
+    
+    return [
+        DefaultInfo(
+            files = depset(ctx.files.srcs),
+        ),
+        Ros2ResourceInfo(
+            resources = resources,
+            package_name = package_name,
+        ),
+    ]
+
+ros2_resource = rule(
+    implementation = _ros2_resource_rule_impl,
+    attrs = {
+        "srcs": attr.label_list(
+            allow_files = True,
+            mandatory = True,
+            doc = "The resource files to install",
+        ),
+        "package_name": attr.string(
+            mandatory = True,
+            doc = "The ROS2 package name where the resources will be installed",
+        ),
+        "destination": attr.string(
+            doc = "An optional subdirectory within the package's share directory to place the resources",
+        ),
+    },
+    doc = """
+    Installs resource files to a ROS2 package's share directory in the Ament index.
+    
+    The files will be placed at:
+    $AMENT_PREFIX_PATH/share/<package_name>/<path_in_package>
+    
+    Where <path_in_package> is determined by:
+    - If destination is provided, the file is placed in that subdirectory within share/<package_name>/
+    """,
+)
+
 def _ros2_ament_setup_rule_impl(ctx):
     plugins = depset(
         transitive = [
@@ -126,11 +204,13 @@ def _ros2_ament_setup_rule_impl(ctx):
         base_package = _get_package_name(types_to_bases_and_names.values()[0][0])
         if base_package not in registered_packages:
             outputs.append(_write_package_xml(ctx, prefix_path, base_package))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, base_package))
             registered_packages.append(base_package)
 
         plugin_package = _get_package_name(types_to_bases_and_names.keys()[0])
         if plugin_package not in registered_packages:
             outputs.append(_write_package_xml(ctx, prefix_path, plugin_package))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, plugin_package))
             registered_packages.append(base_package)
 
         outputs.append(_write_plugin_manifest(
@@ -169,6 +249,7 @@ def _ros2_ament_setup_rule_impl(ctx):
 
         if package_name not in registered_packages:
             outputs.append(_write_package_xml(ctx, prefix_path, package_name))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
             registered_packages.append(package_name)
         dynamic_library = ctx.actions.declare_file(
             paths.join(prefix_path, "lib", "lib" + package_name + "__" + "rosidl_typesupport_cpp" + ".so"),
@@ -196,6 +277,7 @@ def _ros2_ament_setup_rule_impl(ctx):
         package_name = idl.package_name
         if package_name not in registered_packages:
             outputs.append(_write_package_xml(ctx, prefix_path, package_name))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
             registered_packages.append(package_name)
         idl_manifest_contents = []
         for src in idl.srcs:
@@ -216,6 +298,67 @@ def _ros2_ament_setup_rule_impl(ctx):
         )
         ctx.actions.write(idl_manifest, "\n".join([p for p in idl_manifest_contents]))
         outputs.append(idl_manifest)
+    
+    # Process resource dependencies
+    for dep in ctx.attr.resource_deps:
+        if Ros2ResourceInfo in dep:
+            resource_info = dep[Ros2ResourceInfo]
+            package_name = resource_info.package_name
+            
+            # Register package if not already registered
+            if package_name not in registered_packages:
+                outputs.append(_write_package_xml(ctx, prefix_path, package_name))
+                outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
+                registered_packages.append(package_name)
+            
+            # Install each resource
+            for src, path_in_package in resource_info.resources.items():
+                resource_file = ctx.actions.declare_file(
+                    paths.join(prefix_path, "share", package_name, path_in_package),
+                )
+                ctx.actions.symlink(
+                    output = resource_file,
+                    target_file = src,
+                )
+                outputs.append(resource_file)
+
+    nodes = depset(
+        transitive = [
+            dep[Ros2NodeCollectorAspectInfo].node_infos
+            for dep in ctx.attr.deps
+        ],
+    ).to_list()
+    for node in nodes:
+        package_name = node.package_name
+        if package_name not in registered_packages:
+            outputs.append(_write_package_xml(ctx, prefix_path, package_name))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
+            registered_packages.append(package_name)
+
+        exec_path = ctx.actions.declare_file(
+            paths.join(prefix_path, "lib", package_name, node.node_name),
+        )
+        ctx.actions.symlink(
+            output = exec_path,
+            target_file = node.executable,
+        )
+        outputs.append(exec_path)
+
+    ros2_bins = depset(
+        transitive = [
+            dep[Ros2BinCollectorAspectInfo].bin_infos
+            for dep in ctx.attr.deps
+        ],
+    ).to_list()
+    for bin in ros2_bins:
+        exec_path = ctx.actions.declare_file(
+            paths.join(prefix_path, "bin", bin.ros2_bin_name),
+        )
+        ctx.actions.symlink(
+            output = exec_path,
+            target_file = bin.executable,
+        )
+        outputs.append(exec_path)
 
     ament_prefix_path = None
     if outputs:
@@ -242,6 +385,8 @@ ros2_ament_setup = rule(
             aspects = [
                 ros2_interface_collector_aspect,
                 ros2_plugin_collector_aspect,
+                ros2_node_collector_aspect,
+                ros2_bin_collector_aspect,
             ],
         ),
         "idl_deps": attr.label_list(
@@ -252,6 +397,9 @@ ros2_ament_setup = rule(
             ],
             providers = [Ros2InterfaceInfo],
         ),
+        "resource_deps": attr.label_list(
+            providers = [Ros2ResourceInfo],
+        ),
     },
     implementation = _ros2_ament_setup_rule_impl,
 )
@@ -260,7 +408,17 @@ def py_create_ament_setup(ament_prefix_path):
     """ The client code must do `import os`. """
     if ament_prefix_path == None:
         return "os.unsetenv('AMENT_PREFIX_PATH')"
-    return "os.environ['AMENT_PREFIX_PATH'] = '{}'".format(ament_prefix_path)
+    return """
+import os
+
+runfiles_dir = os.getcwd()
+absolute_ament_prefix_path = os.path.join(runfiles_dir, '{0}')
+os.environ['AMENT_PREFIX_PATH'] = absolute_ament_prefix_path
+os.environ['PATH'] = os.pathsep.join([
+    os.path.join(absolute_ament_prefix_path, 'bin'),
+    os.environ.get('PATH', ''),
+])
+""".format(ament_prefix_path)
 
 def _py_launcher_rule_impl(ctx):
     output = ctx.actions.declare_file(ctx.attr.name + ".py")
@@ -310,13 +468,14 @@ py_launcher_rule = rule(
     implementation = _py_launcher_rule_impl,
 )
 
-def py_launcher(name, deps, idl_deps = None, **kwargs):
+def py_launcher(name, deps, resource_deps = None, idl_deps = None, **kwargs):
     ament_setup = name + "_ament_setup"
     testonly = kwargs.get("testonly", False)
     ros2_ament_setup(
         name = ament_setup,
         deps = deps,
         idl_deps = idl_deps,
+        resource_deps = resource_deps,
         tags = ["manual"],
         testonly = testonly,
     )
