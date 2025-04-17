@@ -3,6 +3,8 @@
 
 load("@rules_python//python:defs.bzl", "py_library")
 load("@rules_ros2_pip_deps//:requirements.bzl", "requirement")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@com_github_mvukov_rules_ros2//ros2:ament.bzl", "ros2_resource")
 
 py_library(
     name = "launch",
@@ -45,6 +47,19 @@ py_library(
     ],
 )
 
+# generate entry_points.txt with content:
+# [launch.frontend.parser]
+# xml = launch_xml:Parser
+write_file(
+    name = "xml_parser_entry_point",
+    content = [
+        "[launch.frontend.parser]",
+        "xml = launch_xml:Parser",
+    ],
+    out = "launch_xml/launch_xml-1.0.7.egg-info/entry_points.txt",
+    visibility = ["//visibility:public"],
+)
+
 py_library(
     name = "launch_xml",
     srcs = glob(["launch_xml/launch_xml/**/*.py"]),
@@ -53,6 +68,30 @@ py_library(
     deps = [
         ":launch",
     ],
+    data = [
+        ":xml_parser_entry_point",
+    ],
+)
+
+# generate entry_points.txt with content:
+# [launch.frontend.parser]
+# yaml = launch_yaml:Parser
+write_file(
+    name = "yaml_parser_entry_point",
+    content = [
+        "[launch.frontend.parser]",
+        "yaml = launch_yaml:Parser",
+    ],
+    out = "launch_yaml/launch_yaml-1.0.7.egg-info/entry_points.txt",
+    visibility = ["//visibility:public"],
+)
+
+ros2_resource(
+    name = "frontend_resources",
+    srcs = glob(["launch/share/launch/frontend/**"]),
+    package_name = "launch",
+    destination = "frontend",
+    visibility = ["//visibility:public"],
 )
 
 py_library(
@@ -62,5 +101,8 @@ py_library(
     visibility = ["//visibility:public"],
     deps = [
         ":launch",
+    ],
+    data = [
+        ":yaml_parser_entry_point",
     ],
 )

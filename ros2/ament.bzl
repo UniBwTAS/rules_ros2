@@ -410,6 +410,7 @@ def py_create_ament_setup(ament_prefix_path):
         return "os.unsetenv('AMENT_PREFIX_PATH')"
     return """
 import os
+os.environ['ROS_DISTRO'] = 'humble'
 
 runfiles_dir = os.getcwd()
 absolute_ament_prefix_path = os.path.join(runfiles_dir, '{0}')

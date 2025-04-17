@@ -3,6 +3,20 @@
 
 load("@rules_python//python:defs.bzl", "py_library")
 load("@rules_ros2_pip_deps//:requirements.bzl", "requirement")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+
+# generate entry_points.txt with content:
+# [launch.frontend.launch_extension]
+# launch_ros = launch_ros
+write_file(
+    name = "launch_extension_entry_point",
+    content = [
+        "[launch.frontend.launch_extension]",
+        "launch_ros = launch_ros",
+    ],
+    out = "launch_ros/launch_ros-0.19.8.egg-info/entry_points.txt",
+    visibility = ["//visibility:public"],
+)
 
 py_library(
     name = "launch_ros",
@@ -19,6 +33,9 @@ py_library(
         requirement("packaging"),
         requirement("pyyaml"),
     ],
+    data = [
+        ":launch_extension_entry_point",
+    ]
 )
 
 py_library(
@@ -44,5 +61,7 @@ py_library(
         "@ros2_launch//:launch",
         "@ros2cli",
         "@ros2cli//:ros2pkg",
+        "@ros2_launch//:launch_xml",
+        "@ros2_launch//:launch_yaml",
     ],
 )

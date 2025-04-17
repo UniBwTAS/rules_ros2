@@ -19,6 +19,7 @@ def ros2_launch(name, launch_file, nodes = None, resource_deps = None, deps = No
     launcher = "{}_launch".format(name)
     nodes = nodes or []
     deps = deps or []
+    resource_deps = ["@ros2_launch//:frontend_resources"] + (resource_deps or [])
     launch_script = py_launcher(
         launcher,
         deps = nodes + deps,
