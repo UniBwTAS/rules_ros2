@@ -9,7 +9,7 @@ load(
 load("@rules_python//python:defs.bzl", "py_library")
 
 ros2_cpp_binary(
-    name = "foxglove_bridge_node",
+    name = "foxglove_bridge",
     srcs = ["foxglove_bridge_node.cc"],
     visibility = ["//visibility:public"],
     deps = [
