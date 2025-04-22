@@ -36,11 +36,15 @@ def _ros2_bin_collector_aspect_impl(target, ctx):
         collected.append(bin_info)
 
     # Collect transitive info from dependencies
-    transitive = [
-        dep[Ros2BinCollectorAspectInfo].bin_infos
-        for dep in ctx.rule.attr.deps
-        if Ros2BinCollectorAspectInfo in dep
-    ]
+    transitive = []
+    if hasattr(ctx.rule.attr, "deps"):
+        transitive += [dep[Ros2BinCollectorAspectInfo].bin_infos
+            for dep in ctx.rule.attr.deps
+            if Ros2BinCollectorAspectInfo in dep]
+    if hasattr(ctx.rule.attr, "data"):
+        transitive += [dep[Ros2BinCollectorAspectInfo].bin_infos
+            for dep in ctx.rule.attr.data
+            if Ros2BinCollectorAspectInfo in dep]
 
     return [
         Ros2BinCollectorAspectInfo(
@@ -53,6 +57,6 @@ def _ros2_bin_collector_aspect_impl(target, ctx):
 
 ros2_bin_collector_aspect = aspect(
     implementation = _ros2_bin_collector_aspect_impl,
-    attr_aspects = ["deps"],
+    attr_aspects = ["deps", "data"],
     provides = [Ros2BinCollectorAspectInfo],
 )

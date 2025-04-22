@@ -26,9 +26,10 @@ write_file(
 
 py_binary(
     name = "xacro_ros2_bin",
-    srcs = ["xacro_main.py"],
+    srcs = [":write_xacro_main"],
     main = "xacro_main.py",
     deps = [":xacro_lib"],
+    data = [":write_xacro_main"],
     tags = ["ros2_bin"],
     visibility = ["//visibility:public"],
 )

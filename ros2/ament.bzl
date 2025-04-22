@@ -34,6 +34,12 @@ load(
     "Ros2BinCollectorAspectInfo",
     "ros2_bin_collector_aspect",
 )
+load(
+    "@com_github_mvukov_rules_ros2//ros2:resource_aspects.bzl",
+    "Ros2ResourceInfo",
+    "Ros2ResourceCollectorAspectInfo",
+    "ros2_resource_collector_aspect",
+)
 
 _AMENT_SETUP_MODULE = "ament_setup"
 
@@ -122,15 +128,6 @@ Ros2AmentSetupInfo = provider(
     "TBD",
     fields = [
         "ament_prefix_path",
-    ],
-)
-
-# New provider for Ros2ResourceInfo to track installed resources
-Ros2ResourceInfo = provider(
-    "Information about ROS2 resources that should be installed",
-    fields = [
-        "resources",  # Dictionary mapping from source files to destination paths
-        "package_name",  # The ROS2 package name
     ],
 )
 
@@ -240,8 +237,14 @@ def _ros2_ament_setup_rule_impl(ctx):
     idl_plugins = depset(
         transitive = [
             dep[Ros2IdlPluginAspectInfo].plugins
-            for dep in ctx.attr.idl_deps
-        ],
+            for dep in ctx.attr.idl_deps if Ros2IdlPluginAspectInfo in dep
+        ] + [
+            dep[Ros2IdlPluginAspectInfo].plugins
+            for dep in ctx.attr.deps if Ros2IdlPluginAspectInfo in dep
+        ] + ([
+            dep[Ros2IdlPluginAspectInfo].plugins
+            for dep in ctx.attr.data if Ros2IdlPluginAspectInfo in dep
+        ] if hasattr(ctx.attr, "data") else [])
     ).to_list()
 
     for plugin in idl_plugins:
@@ -272,7 +275,7 @@ def _ros2_ament_setup_rule_impl(ctx):
             for dep in ctx.attr.idl_deps
         ] + [idls_from_deps],
     ).to_list()
-
+    
     for idl in idls:
         package_name = idl.package_name
         if package_name not in registered_packages:
@@ -300,27 +303,31 @@ def _ros2_ament_setup_rule_impl(ctx):
         outputs.append(idl_manifest)
     
     # Process resource dependencies
-    for dep in ctx.attr.resource_deps:
-        if Ros2ResourceInfo in dep:
-            resource_info = dep[Ros2ResourceInfo]
-            package_name = resource_info.package_name
-            
-            # Register package if not already registered
-            if package_name not in registered_packages:
-                outputs.append(_write_package_xml(ctx, prefix_path, package_name))
-                outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
-                registered_packages.append(package_name)
-            
-            # Install each resource
-            for src, path_in_package in resource_info.resources.items():
-                resource_file = ctx.actions.declare_file(
-                    paths.join(prefix_path, "share", package_name, path_in_package),
-                )
-                ctx.actions.symlink(
-                    output = resource_file,
-                    target_file = src,
-                )
-                outputs.append(resource_file)
+    resources = depset(
+        transitive = [
+            dep[Ros2ResourceCollectorAspectInfo].resources
+            for dep in ctx.attr.deps if Ros2ResourceCollectorAspectInfo in dep
+        ]
+    ).to_list()
+    for resource_info in resources:
+        package_name = resource_info.package_name
+        
+        # Register package if not already registered
+        if package_name not in registered_packages:
+            outputs.append(_write_package_xml(ctx, prefix_path, package_name))
+            outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
+            registered_packages.append(package_name)
+        
+        # Install each resource
+        for src, path_in_package in resource_info.resources.items():
+            resource_file = ctx.actions.declare_file(
+                paths.join(prefix_path, "share", package_name, path_in_package),
+            )
+            ctx.actions.symlink(
+                output = resource_file,
+                target_file = src,
+            )
+            outputs.append(resource_file)
 
     nodes = depset(
         transitive = [
@@ -387,6 +394,10 @@ ros2_ament_setup = rule(
                 ros2_plugin_collector_aspect,
                 ros2_node_collector_aspect,
                 ros2_bin_collector_aspect,
+                ros2_resource_collector_aspect,
+                idl_adapter_aspect,
+                cpp_generator_aspect,
+                ros2_idl_plugin_aspect,
             ],
         ),
         "idl_deps": attr.label_list(
@@ -396,9 +407,6 @@ ros2_ament_setup = rule(
                 ros2_idl_plugin_aspect,
             ],
             providers = [Ros2InterfaceInfo],
-        ),
-        "resource_deps": attr.label_list(
-            providers = [Ros2ResourceInfo],
         ),
     },
     implementation = _ros2_ament_setup_rule_impl,
@@ -469,14 +477,13 @@ py_launcher_rule = rule(
     implementation = _py_launcher_rule_impl,
 )
 
-def py_launcher(name, deps, resource_deps = None, idl_deps = None, **kwargs):
+def py_launcher(name, deps, idl_deps = None, **kwargs):
     ament_setup = name + "_ament_setup"
     testonly = kwargs.get("testonly", False)
     ros2_ament_setup(
         name = ament_setup,
         deps = deps,
         idl_deps = idl_deps,
-        resource_deps = resource_deps,
         tags = ["manual"],
         testonly = testonly,
     )

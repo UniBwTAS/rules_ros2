@@ -140,6 +140,13 @@ IdlAdapterAspectInfo = provider("TBD", fields = [
 ])
 
 def _idl_adapter_aspect_impl(target, ctx):
+    if Ros2InterfaceInfo not in target:
+        return [
+            IdlAdapterAspectInfo(
+                idl_files = [],
+                idl_tuples = [],
+            ),
+        ]
     package_name = target.label.name
     srcs = target[Ros2InterfaceInfo].info.srcs
     idl_files, idl_tuples = _run_adapter(ctx, package_name, srcs)
@@ -152,7 +159,7 @@ def _idl_adapter_aspect_impl(target, ctx):
 
 idl_adapter_aspect = aspect(
     implementation = _idl_adapter_aspect_impl,
-    attr_aspects = ["deps"],
+    attr_aspects = ["deps", "data", "idl_deps"],
     attrs = {
         "_adapter": attr.label(
             default = Label("@ros2_rosidl//:rosidl_adapter_app"),
@@ -533,6 +540,13 @@ _TYPESUPPORT_INTROSPECION_GENERATOR_CPP_OUTPUT_MAPPING = [
 ]
 
 def _cpp_generator_aspect_impl(target, ctx):
+    if Ros2InterfaceInfo not in target:
+        return [
+            CppGeneratorAspectInfo(
+                cc_info = None,
+                compilation_outputs = None,
+            ),
+        ]
     package_name = target.label.name
     srcs = target[Ros2InterfaceInfo].info.srcs
     adapter = target[IdlAdapterAspectInfo]
@@ -603,7 +617,7 @@ def _cpp_generator_aspect_impl(target, ctx):
 
 cpp_generator_aspect = aspect(
     implementation = _cpp_generator_aspect_impl,
-    attr_aspects = ["deps"],
+    attr_aspects = ["deps", "data", "idl_deps"],
     attrs = {
         "_interface_generator": attr.label(
             default = Label("@ros2_rosidl//:rosidl_generator_cpp_app"),
@@ -646,7 +660,6 @@ cpp_generator_aspect = aspect(
             default = Label("@bazel_tools//tools/cpp:current_cc_toolchain"),
         ),
     },
-    required_providers = [Ros2InterfaceInfo],
     required_aspect_providers = [IdlAdapterAspectInfo],
     provides = [CppGeneratorAspectInfo],
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
