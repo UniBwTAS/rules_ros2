@@ -25,9 +25,10 @@ def _ros2_node_collector_aspect_impl(target, ctx):
         ros_package_name = target.label.package
         if ros_package_name:
             ros_package_name = ros_package_name.split("/")[-1]
-        else:
+        elif "+ros2_" in ctx.label.repo_name:
             ros_package_name = ctx.label.repo_name.split("+ros2_")[-1]
-        
+        else:
+            ros_package_name = ctx.label.name.split("+")[-1]
 
         # get node name from the target
         ros_node_name = ctx.label.name.split("/")[-1]
