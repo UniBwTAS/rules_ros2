@@ -5,8 +5,8 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "resource_retriever",
-    srcs = ["resource_retriever/src/retriever.cpp"],
-    hdrs = glob(["resource_retriever/include/resource_retriever/*.hpp"]),
+    srcs = glob(["resource_retriever/src/**/*.cpp"]),
+    hdrs = glob(["resource_retriever/include/**/*.hpp"]),
     includes = ["resource_retriever/include"],
     visibility = ["//visibility:public"],
     deps = [

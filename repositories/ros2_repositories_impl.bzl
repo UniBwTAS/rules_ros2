@@ -216,9 +216,9 @@ def ros2_repositories_impl():
         http_archive,
         name = "ros2_resource_retriever",
         build_file = "@com_github_mvukov_rules_ros2//repositories:resource_retriever.BUILD.bazel",
-        sha256 = "5b4e1411ed955c0562f4609d9025143bf9199d405cbc471484b83f3cbab59162",
-        strip_prefix = "resource_retriever-3.1.2",
-        url = "https://github.com/ros/resource_retriever/archive/refs/tags/3.1.2.tar.gz",
+        sha256 = "b39a04506c4eeb7fe141d36a5837679b23c3228029efd664df07c6d21c2df42e",
+        strip_prefix = "resource_retriever-3.7.0",
+        url = "https://github.com/ros/resource_retriever/archive/refs/tags/3.7.0.tar.gz",
     )
 
     maybe(
