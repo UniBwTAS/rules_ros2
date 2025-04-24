@@ -2,6 +2,7 @@
 """
 
 load("@com_github_mvukov_rules_ros2//ros2:cc_defs.bzl", "ros2_cpp_library")
+load("@com_github_mvukov_rules_ros2//ros2:cc_defs.bzl", "ros2_cpp_binary")
 load(
     "@com_github_mvukov_rules_ros2//third_party:expand_template.bzl",
     "expand_template",
@@ -10,7 +11,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 expand_template(
     name = "version_cpp",
-    out = "foxglove_bridge/src/version.cpp",
+    out = "foxglove_bridge_version/version.cpp",
     substitutions = {
         "@FOXGLOVE_BRIDGE_VERSION@": "N/A",
         "@FOXGLOVE_BRIDGE_GIT_HASH@": "N/A",
@@ -49,5 +50,17 @@ ros2_cpp_library(
         "@ros2_rclcpp//:rclcpp",
         "@ros2_rclcpp//:rclcpp_components",
         "@ros2_resource_retriever//:resource_retriever",
+    ],
+)
+
+# Not functional yet! Needs rcl_components plugin support!
+ros2_cpp_binary(
+    name = "foxglove_bridge",
+    srcs = ["ros2_foxglove_bridge/src/ros2_foxglove_bridge_node.cpp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":foxglove_bridge_component",
+        "@ros2_rclcpp//:rclcpp",
+        "@ros2_rclcpp//:rclcpp_components",
     ],
 )
