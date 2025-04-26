@@ -313,7 +313,8 @@ def _compile_cc_generated_code(
         deps,
         cc_include_dir,
         copts,
-        target = None):
+        target = None,
+        link_flags = [],):
     cc_toolchain = find_cpp_toolchain(ctx)
     feature_configuration = cc_common.configure_features(
         ctx = ctx,
@@ -358,6 +359,7 @@ def _compile_cc_generated_code(
         cc_toolchain = cc_toolchain,
         feature_configuration = feature_configuration,
         linking_contexts = linking_contexts,
+        user_link_flags = link_flags,
     )
 
     cc_info = CcInfo(
@@ -697,6 +699,10 @@ def _get_py_srcs(files):
     return [f for f in files if f.path.endswith(".py")]
 
 def _py_generator_aspect_impl(target, ctx):
+
+    macos_constraint = ctx.attr._macos_constraint[platform_common.ConstraintValueInfo]
+    is_macos = ctx.target_platform_has_constraint(macos_constraint)
+
     package_name = target.label.name
     srcs = target[Ros2InterfaceInfo].info.srcs
     adapter = target[IdlAdapterAspectInfo]
@@ -740,6 +746,7 @@ def _py_generator_aspect_impl(target, ctx):
         cc_include_dir = cc_include_dir,
         copts = ctx.attr._py_ext_c_copts,
         target = target,
+        link_flags = ["-undefined", "dynamic_lookup"] if is_macos else [],
     )
 
     cc_toolchain = find_cpp_toolchain(ctx)
@@ -849,6 +856,7 @@ py_generator_aspect = aspect(
         "_cc_toolchain": attr.label(
             default = Label("@bazel_tools//tools/cpp:current_cc_toolchain"),
         ),
+        "_macos_constraint": attr.label(default = Label("@platforms//os:macos")),
     },
     required_providers = [Ros2InterfaceInfo],
     required_aspect_providers = [
@@ -881,7 +889,7 @@ def _py_generator_impl(ctx):
     linked_dynamic_libraries = []
     for linker_input in py_info.linker_inputs.to_list():
         for library in linker_input.libraries:
-            if library.pic_static_library == None:
+            if library.pic_static_library == None and library.dynamic_library != None and library.static_library == None:
                 # The sole purpose of this shenanigan is to fetch @ros2_rosidl//:rosidl_typesupport_introspection_c_identifier.
                 # For that target we know it only has a dynamic library.
                 linked_dynamic_libraries.append(library.dynamic_library)

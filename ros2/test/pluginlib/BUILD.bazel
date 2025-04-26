@@ -58,6 +58,10 @@ ros2_cpp_test(
 ros2_cpp_binary(
     name = "py_loader.so",
     srcs = ["py_loader.cc"],
+    linkopts = select({
+        "@platforms//os:macos": ["-undefined", "dynamic_lookup"],
+        "//conditions:default": [],
+    }),
     linkshared = True,
     deps = [
         ":polygon_base",

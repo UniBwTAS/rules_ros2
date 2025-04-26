@@ -16,10 +16,10 @@ ros2_cpp_binary(
     ]),
     copts = ["-fvisibility=hidden"],
     includes = ["rclpy/src"],
-    linkopts = [
-        "-fvisibility=hidden",
-        "-latomic",
-    ],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden", "-latomic"],
+    }),
     linkshared = True,
     deps = [
         "@pybind11",

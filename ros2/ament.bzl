@@ -226,7 +226,7 @@ def _ros2_ament_setup_rule_impl(ctx):
         ))
 
         dynamic_library = ctx.actions.declare_file(
-            paths.join(prefix_path, "lib", "lib" + plugin_target_name + ".so"),
+            paths.join(prefix_path, "lib", "lib" + plugin_target_name + "." + plugin.dynamic_library.extension),
         )
         ctx.actions.symlink(
             output = dynamic_library,
@@ -255,7 +255,7 @@ def _ros2_ament_setup_rule_impl(ctx):
             outputs.append(_write_package_to_resource_index(ctx, prefix_path, package_name))
             registered_packages.append(package_name)
         dynamic_library = ctx.actions.declare_file(
-            paths.join(prefix_path, "lib", "lib" + package_name + "__" + "rosidl_typesupport_cpp" + ".so"),
+            paths.join(prefix_path, "lib", "lib" + package_name + "__" + "rosidl_typesupport_cpp." + plugin.dynamic_library.extension),
         )
         ctx.actions.symlink(
             output = dynamic_library,

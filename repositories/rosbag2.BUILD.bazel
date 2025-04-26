@@ -246,7 +246,10 @@ ros2_cpp_binary(
     name = "rosbag2_py/rosbag2_py/_reader.so",
     srcs = ["rosbag2_py/src/rosbag2_py/_reader.cpp"],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",
@@ -264,7 +267,10 @@ ros2_cpp_binary(
         "rosbag2_py/src/rosbag2_py/format_bag_metadata.hpp",
     ],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",
@@ -277,7 +283,10 @@ ros2_cpp_binary(
     name = "rosbag2_py/rosbag2_py/_writer.so",
     srcs = ["rosbag2_py/src/rosbag2_py/_writer.cpp"],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",
@@ -291,7 +300,10 @@ ros2_cpp_binary(
     name = "rosbag2_py/rosbag2_py/_info.so",
     srcs = ["rosbag2_py/src/rosbag2_py/_info.cpp"],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",
@@ -304,7 +316,10 @@ ros2_cpp_binary(
     name = "rosbag2_py/rosbag2_py/_transport.so",
     srcs = ["rosbag2_py/src/rosbag2_py/_transport.cpp"],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",
@@ -319,7 +334,10 @@ ros2_cpp_binary(
     name = "rosbag2_py/rosbag2_py/_reindexer.so",
     srcs = ["rosbag2_py/src/rosbag2_py/_reindexer.cpp"],
     copts = ["-fvisibility=hidden"],
-    linkopts = ["-fvisibility=hidden"],
+    linkopts = select({
+        "@platforms//os:macos": ["-fvisibility=hidden", "-undefined", "dynamic_lookup"],
+        "//conditions:default": ["-fvisibility=hidden",],
+    }),
     linkshared = True,
     deps = [
         ":pybind11",

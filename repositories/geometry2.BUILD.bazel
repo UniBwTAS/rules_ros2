@@ -163,6 +163,10 @@ ros2_cpp_binary(
         "tf2_py/src/tf2_py.cpp",
     ],
     linkshared = True,
+    linkopts = select({
+        "@platforms//os:macos": ["-undefined", "dynamic_lookup"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":tf2",
         "@rules_python//python/cc:current_py_cc_headers",
