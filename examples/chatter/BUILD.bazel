@@ -52,7 +52,8 @@ rust_ros2_interface_library(
 
 ros2_launch(
     name = "chatter",
-    launch_file = "chatter.py",
+    launch_file = "launch/chatter.py",
+    ros2_package_name = "chatter",
     nodes = [
         ":listener",
         ":talker",
