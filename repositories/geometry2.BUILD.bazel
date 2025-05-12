@@ -195,6 +195,7 @@ py_library(
         ":tf2_py/tf2_py/_tf2_py.so",
     ],
     imports = ["tf2_py"],
+    visibility = ["//visibility:public"],
 )
 
 py_library(
